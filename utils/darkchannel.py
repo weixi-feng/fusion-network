@@ -55,7 +55,7 @@ def init_transmission(I_eroded, L):
     return t
 
 
-def inverse_model(I, t, A, t_thresh):
+def inverse_model(I, t, A, t_thresh, RGB=True):
     """
     :param I: hazy image of shape (H, W, C)
     :param t: estimated transmission map of shape (H, W)
@@ -63,26 +63,11 @@ def inverse_model(I, t, A, t_thresh):
     :param t_thresh: threshold for transmission map
     :return: dehazed image using I = J(x)t(x)+A(1-t(x))
     """
-    t_expand = np.repeat(t[...,np.newaxis], 3, axis=-1)
-    J = (I-A[np.newaxis, np.newaxis, :]*(1-t_expand))/t_expand
+    if RGB:
+        t_expand = np.repeat(t[...,np.newaxis], 3, axis=-1)
+        J = (I-A[np.newaxis, np.newaxis, :])/np.maximum(t_expand, t_thresh) + A
+    else:
+        J = (I-A)/np.maximum(t, t_thresh) + A
     return J
 
 
-def dark_channel_dehaze(I):
-    window_size = 15
-    t_threshold = 0.1
-    window_size_guided_filter = 41
-    epsilon = 1e-3
-
-    I_erode, I_dark = get_dark_channel(I, window_size)
-    L, _= get_atmosphere_light(I_dark, I)
-    t_initial = init_transmission(I_erode, L)
-    t = guided_filter(I, t_initial, window_size_guided_filter, epsilon)
-    t_clip = clip_to_unit_range(t)
-    J = inverse_model(I, t_clip, L, t_threshold)
-    return clip_to_unit_range(J)
-
-if __name__ == '__main__':
-    hazy_image = plt.imread('../01_00002_rgb.tiff')
-    hazy_image = hazy_image/255.0
-    clean_image = dark_channel_dehaze(hazy_image)
