@@ -119,9 +119,7 @@ def ResNet152(input_channels, num_blocks=None, symmetric=True):
     return ResNet(input_channels, Bottleneck, num_blocks, symmetric)
 
 
-def test():
-    net = ResNet18(3, num_blocks=[2,2,2,2])
-    y = net(torch.randn(2,3,32,32))
+if __name__ == '__main__':
+    net = ResNet18(3, num_blocks=[2, 2, 2, 2])
+    y = net(torch.randn(2, 3, 32, 32))
     print(y.size())
-
-test()
