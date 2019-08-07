@@ -14,17 +14,15 @@ from models.twostream import TwoStream
 from utils.dataloader import HazyDataset, Resize, ToTensor
 from utils import get_psnr_torch, get_ssim_torch
 
-from opt.train_opt import TrainOptions
+from opt.train_opt import train_parser
 from test import test
 
 
 if __name__ == '__main__':
-    train_parser = TrainOptions()
-    opt = train_parser.parse()
+    opt = train_parser()
 
     # some hyper-parameters
     device = 'cuda' if opt.cuda and torch.cuda.is_available() else 'cpu'
-    print('Using %s' % device)
     image_size = (opt.image_size, opt.image_size)
     lr = opt.lr
     batch_size = opt.batch_size
@@ -48,15 +46,18 @@ if __name__ == '__main__':
     train_data_dir = opt.dataroot
     test_data_dir = os.path.join(*opt.dataroot.split('/')[:-1], 'test')
     transforms_train = transforms.Compose([Resize((256, 256)),
-                                     ToTensor()
-                                     ])
+                                           transforms.ToTensor(),])
     transforms_test = transforms.Compose([Resize((256, 256)),
-                                           ToTensor()
-                                           ])
+                                          transforms.ToTensor(),])
 
-    trainset = HazyDataset(train_data_dir, transforms_train)
-    testset = HazyDataset(test_data_dir, transforms_test)
-    trainloader = DataLoader(trainset, 1, shuffle=True, num_workers=0)
+    if opt.model == 'residual_physics':
+        trainset = HazyDataset(train_data_dir, transforms_train, True)
+        testset = HazyDataset(test_data_dir, transforms_test, True)
+    else:
+        trainset = HazyDataset(train_data_dir, transforms_train, False)
+        testset = HazyDataset(test_data_dir, transforms_test, False)
+    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=4)
+
 
     print('Building models')
     if opt.model == 'residual_physics':
@@ -100,12 +101,19 @@ if __name__ == '__main__':
             # zero gradient
             optimizer.zero_grad()
 
-            rgb_input, nir_input = data['rgb'].to(device), data['nir'].to(device)
-            rgb_dehazed, nir_dehazed = data['rgb_dehazed'].to(device), data['nir_dehazed'].to(device)
-            rgb_gt = data['gt'].to(device)
+            if opt.mode == 'residual_physics':
+                rgb_input, nir_input = data['rgb_input'].to(device), data['nir_input'].to(device)
+                rgb_dehazed, nir_dehazed = data['rgb_dehazed'].to(device), data['nir_dehazed'].to(device)
+                rgb_gt = data['gt'].to(device)
 
-            # forward with physics solution
-            outputs = net(rgb_input, nir_input, (rgb_dehazed, nir_dehazed))
+                # forward with physics solution
+                outputs = net(rgb_input, nir_input, (rgb_dehazed, nir_dehazed))
+            else:
+                rgb_input, nir_input = data['rgb_input'].to(device), data['nir_input'].to(device)
+                rgb_gt = data['gt'].to(device)
+
+                # forward with physics solution
+                outputs = net(rgb_input, nir_input)
 
             # calculate loss
             loss = criterion(outputs, rgb_gt)
@@ -138,7 +146,7 @@ if __name__ == '__main__':
         print('Epoch %d, training loss: %.5f, avg_psnr: %.2f, avg_ssim: %.4f' % (epoch+1, current_epoch_loss,
                                                                                 current_epoch_psnr, current_epoch_ssim))
         if (epoch+1) % opt.test_freq == 0:
-            test_loss, test_psnr, test_ssim = test(net, testset, device, criterion)
+            test_loss, test_psnr, test_ssim = test(net, testset, device, criterion, opt.model)
             print('Testing results: avg_loss %.5f, avg_psnr: %.2f, avg_ssim %.4f' % (test_loss, test_psnr, test_ssim))
 
 

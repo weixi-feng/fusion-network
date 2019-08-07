@@ -13,18 +13,24 @@ from utils.dataloader import HazyDataset
 from utils import get_psnr_torch, get_ssim_torch
 
 
-def test(net, dataset, device, criterion):
+def test(net, dataset, device, criterion, model):
     testloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
     test_loss = 0
     test_psnr = 0
     test_ssim = 0
     with torch.no_grad():
+        net.eval()
         for inputs in testloader:
-            rgb_input, nir_input = inputs['rgb'].to(device), inputs['nir'].to(device)
-            rgb_dehazed, nir_dehazed = inputs['rgb_dehazed'].to(device), inputs['nir_dehazed'].to(device)
-            rgb_gt = inputs['gt'].to(device)
+            if model == 'residual_physics':
+                rgb_input, nir_input = inputs['rgb_input'].to(device), inputs['nir_input'].to(device)
+                rgb_dehazed, nir_dehazed = inputs['rgb_dehazed'].to(device), inputs['nir_dehazed'].to(device)
+                rgb_gt = inputs['gt'].to(device)
+                outputs = net(rgb_input, nir_input, (rgb_dehazed, nir_dehazed))
+            else:
+                rgb_input, nir_input = inputs['rgb'].to(device), inputs['nir'].to(device)
+                rgb_gt = inputs['gt'].to(device)
+                outputs = net(rgb_input, nir_input)
 
-            outputs = net(rgb_input, nir_input, (rgb_dehazed, nir_dehazed))
             loss = criterion(rgb_gt, outputs)
             test_loss += loss.item()
 
