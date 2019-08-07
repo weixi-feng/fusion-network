@@ -67,7 +67,7 @@ class ResNet(nn.Module):
     def __init__(self, input_channels, block, num_blocks, symmetric=True):
         super(ResNet, self).__init__()
         self.in_planes = 64
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(input_channels, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.layers = []
         for i, num_block in enumerate(num_blocks):
@@ -77,6 +77,7 @@ class ResNet(nn.Module):
                 self.layers.append(self._make_layer(block, 2**(len(num_blocks)+5-i), num_block, stride=1))
             self.layers.append(nn.Conv2d(64, input_channels, kernel_size=3, stride=1, padding=1, bias=False))
             self.layers.append(nn.ReLU())
+        self.layers = nn.Sequential(*self.layers)
 
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
@@ -88,8 +89,7 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
-        for layer in self.layers:
-            out = layer(out)
+        out = self.layers(out)
         return out
 
 

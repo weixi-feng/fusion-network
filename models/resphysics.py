@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from models.resnet import *
+from models.resnet import ResNet18
 from models.unet import *
 
 
@@ -34,3 +34,9 @@ class ResidualPhysics(nn.Module):
         out = self.frontbone(x)
         return out
 
+if __name__ == '__main__':
+    net = ResidualPhysics()
+    a = torch.randn(1, 3, 480, 640)
+    b = torch.randn(1, 1, 480, 640)
+    out = net(a, b, (a,b))
+    print(out.size())

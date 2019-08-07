@@ -6,13 +6,16 @@ import time
 from torch.utils.data import DataLoader
 from torchvision import transforms
 import torch.optim as optim
+from tqdm import tqdm
+import pdb
 
 from models.resphysics import ResidualPhysics
 from models.twostream import TwoStream
-from utils.dataloader import HazyDataset
+from utils.dataloader import HazyDataset, Resize, ToTensor
 from utils import get_psnr_torch, get_ssim_torch
 
 from opt.train_opt import TrainOptions
+from test import test
 
 
 if __name__ == '__main__':
@@ -21,6 +24,7 @@ if __name__ == '__main__':
 
     # some hyper-parameters
     device = 'cuda' if opt.cuda and torch.cuda.is_available() else 'cpu'
+    print('Using %s' % device)
     image_size = (opt.image_size, opt.image_size)
     lr = opt.lr
     batch_size = opt.batch_size
@@ -43,15 +47,16 @@ if __name__ == '__main__':
     print('Preparing data')
     train_data_dir = opt.dataroot
     test_data_dir = os.path.join(*opt.dataroot.split('/')[:-1], 'test')
-    transforms_train = transforms.Compose([transforms.Resize(image_size),
-                                          transforms.ToTensor()])
-    transforms_test = transforms.Compose([transforms.Resize(image_size),
-                                          transforms.ToTensor()])
+    transforms_train = transforms.Compose([Resize((256, 256)),
+                                     ToTensor()
+                                     ])
+    transforms_test = transforms.Compose([Resize((256, 256)),
+                                           ToTensor()
+                                           ])
 
     trainset = HazyDataset(train_data_dir, transforms_train)
     testset = HazyDataset(test_data_dir, transforms_test)
-    trainloader = DataLoader(trainset, batch_size, shuffle=True, num_workers=num_threads)
-    testloader = DataLoader(testset, batch_size=1, shuffle=False, num_workers=num_threads)
+    trainloader = DataLoader(trainset, 1, shuffle=True, num_workers=0)
 
     print('Building models')
     if opt.model == 'residual_physics':
@@ -77,26 +82,27 @@ if __name__ == '__main__':
         start_epoch = opt.load_epoch
 
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(net.parameters(), lr=lr, betas=beta)
+    optimizer = optim.Adam(net.parameters(), lr=lr, betas=(0.5, 0.999))
 
     lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10)
 
     # start training
-    net.train()
+    print('Start training')
     epoch_loss = []
     epoch_psnr = []
     epoch_ssim = []
     for epoch in range(epochs):
+        net.train()
         batch_loss = []
         batch_psnr = []
         batch_ssim = []
         for i, data in enumerate(trainloader):
+            # zero gradient
+            optimizer.zero_grad()
+
             rgb_input, nir_input = data['rgb'].to(device), data['nir'].to(device)
             rgb_dehazed, nir_dehazed = data['rgb_dehazed'].to(device), data['nir_dehazed'].to(device)
             rgb_gt = data['gt'].to(device)
-
-            # zero gradient
-            optimizer.zero_grad()
 
             # forward with physics solution
             outputs = net(rgb_input, nir_input, (rgb_dehazed, nir_dehazed))
@@ -129,8 +135,12 @@ if __name__ == '__main__':
             best_psnr = current_epoch_psnr
             best_ssim = current_epoch_ssim
 
-        print('Epoch %d, training loss: %.5f, avg_psnr: %.2f, avg_ssim: %.2f' % (epoch+1, current_epoch_loss,
-                                                                                 current_epoch_psnr, current_epoch_ssim))
+        print('Epoch %d, training loss: %.5f, avg_psnr: %.2f, avg_ssim: %.4f' % (epoch+1, current_epoch_loss,
+                                                                                current_epoch_psnr, current_epoch_ssim))
+        if (epoch+1) % opt.test_freq == 0:
+            test_loss, test_psnr, test_ssim = test(net, testset, device, criterion)
+            print('Testing results: avg_loss %.5f, avg_psnr: %.2f, avg_ssim %.4f' % (test_loss, test_psnr, test_ssim))
+
 
         if (epoch+1) % opt.save_epoch_freq == 0:
             save_prefix = os.path.join(opt.save_dir, '%s'%opt.model)

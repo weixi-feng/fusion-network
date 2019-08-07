@@ -14,6 +14,7 @@ class TrainOptions(BaseOptions):
         parser.add_argument('--save_epoch_freq', type=int, default=20, help='frequency of saving checkpoints at the end of epochs')
         parser.add_argument('--epoch', type=int, default=100,
                             help='number of epochs to train')
+        parser.add_argument('--test_freq', type=int, default=5, help='frequency of testing models on test set')
         # training parameters
         parser.add_argument('--niter', type=int, default=100, help='# of iter at starting learning rate')
         parser.add_argument('--niter_decay', type=int, default=100, help='# of iter to linearly decay learning rate to zero')

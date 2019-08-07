@@ -47,5 +47,5 @@ if __name__ == '__main__':
     rgb_img = rgb_img/255.0
     nir_img = nir_img/255.0
     J_rgb, J_nir = rgb_nir_dcp(rgb_img, nir_img)
-    plt.imshow(J_nir, cmap='gray')
+    plt.imshow(J_rgb, cmap='gray')
     plt.show()
