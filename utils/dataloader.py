@@ -10,52 +10,55 @@ import glob
 from models.physicsmodel import rgb_nir_dcp
 import time
 from tqdm import tqdm
+import pickle
 
 
 class HazyDataset(Dataset):
-    def __init__(self, prefix, transform=None):
+    def __init__(self, prefix, transform=None, dcp=False):
         print('Preparing dark channel images')
         self.rgb_path = os.path.join(prefix, 'RGB')
         self.nir_path = os.path.join(prefix, 'NIR')
         self.gt_path = os.path.join(prefix, 'gt')
+        self.dcp = dcp
+        self.dcp_path = os.path.join(prefix, 'dcp')
         self.transform = transform
         self.rgb_names = glob.glob(os.path.join(self.rgb_path, '*.tiff'))
-        self.dark_channel = {}
-        for i in tqdm(range(len(self.rgb_names))):
-            components = self.rgb_names[i].split('/')
-            nir_image_name = os.path.join(self.nir_path, '%snir.tiff' % components[-1][:-8])
-            rgb_image = Image.open(self.rgb_names[i])
-            nir_image = Image.open(nir_image_name)
-            rgb_dehazed, nir_dehazed = rgb_nir_dcp(np.asarray(rgb_image), np.asarray(nir_image))
-            self.dark_channel[self.rgb_names[i]] = rgb_dehazed
-            self.dark_channel[nir_image_name] = nir_dehazed
 
     def __getitem__(self, idx):
         rgb_image_name = self.rgb_names[idx]
         components = rgb_image_name.split('/')
         nir_image_name = os.path.join(self.nir_path, '%snir.tiff' % components[-1][:-8])
         gt_image_name = os.path.join(self.gt_path, '%sgt.tiff' % components[-1][:-8])
+        rgb_dcp_name = os.path.join(self.dcp_path, components[-1])
+        nir_dcp_name = os.path.join(self.dcp_path, '{}nir.tiff'.format(components[-1][:-8]))
 
         rgb_image = np.asarray(Image.open(rgb_image_name))
         nir_image = np.asarray(Image.open(nir_image_name))
         gt_image = np.asarray(Image.open(gt_image_name))
 
-        rgb_dehazed = self.dark_channel[rgb_image_name]
-        nir_dehazed = self.dark_channel[nir_image_name]
-
         if self.transform is not None:
             rgb_image = self.transform(rgb_image)
             nir_image = self.transform(nir_image)
-            rgb_dehazed = self.transform(rgb_dehazed)
-            nir_dehazed = self.transform(nir_dehazed)
             gt_image = self.transform(gt_image)
 
-        image_dict = {'rgb': rgb_image,
-                      'nir': nir_image,
-                      'rgb_dehazed': rgb_dehazed,
-                      'nir_dehazed': nir_dehazed,
+        image_dict = {'rgb_input': rgb_image,
+                      'nir_input': nir_image,
                       'gt': gt_image}
-        return image_dict
+
+        if not self.dcp:
+            return image_dict
+        else:
+            with open(rgb_dcp_name, 'rb') as rgb_file:
+                rgb_dehazed = pickle.load(rgb_file)
+            with open(nir_dcp_name, 'rb') as nir_file:
+                nir_dehazed = pickle.load(nir_file)
+
+            if self.transform is not None:
+                rgb_dehazed = self.transform(rgb_dehazed)
+                nir_dehazed = self.transform(nir_dehazed)
+            image_dict['rgb_dehazed'] = rgb_dehazed
+            image_dict['nir_dehazed'] = nir_dehazed
+            return image_dict
 
     def __len__(self):
         return len(self.rgb_names)
