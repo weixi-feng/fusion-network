@@ -18,10 +18,10 @@ def dcp_dehaze(I):
     return clip_to_unit_range(J)
 
 
-def rgb_nir_dcp(rgb_img, nir_img):
+def rgb_nir_dcp(rgb_img, nir_img, patch_size=41):
     window_size = 15
     t_threshold = 0.1
-    window_size_guided_filter = 41
+    window_size_guided_filter = patch_size
     epsilon = 1e-3
 
     if rgb_img.dtype == 'uint8':
