@@ -13,7 +13,7 @@ def train_parser():
                         help='network initialization [normal | xavier | kaiming | orthogonal]')
     parser.add_argument('--num_threads', default=4, type=int, help='# threads for loading data')
     parser.add_argument('--batch_size', type=int, default=1, help='input batch size')
-    parser.add_argument('--image_size', type=int, default=256, help='scale images to this size')
+    parser.add_argument('--image_size', type=int, default=128, help='scale images to this size')
     parser.add_argument('--load_epoch', type=int, default=0, help='which iteration to load')
     parser.add_argument('--exp_id', type=int, default=1, help='experiment id')
     parser.add_argument('--save_epoch_freq', type=int, default=20,

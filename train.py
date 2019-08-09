@@ -11,8 +11,10 @@ import pdb
 
 from models.resphysics import ResidualPhysics
 from models.twostream import TwoStream
+from models.onestream import OneStream
+from models import get_model
 from utils.dataloader import HazyDataset, Resize, ToTensor
-from utils import get_psnr_torch, get_ssim_torch
+from utils import get_psnr_torch, get_ssim_torch, prepare_data
 
 from opt.train_opt import train_parser
 from test import test
@@ -45,30 +47,15 @@ if __name__ == '__main__':
     print('Preparing data')
     train_data_dir = opt.dataroot
     test_data_dir = os.path.join(*opt.dataroot.split('/')[:-1], 'test')
-    transforms_train = transforms.Compose([Resize((256, 256)),
-                                           transforms.ToTensor(),])
-    transforms_test = transforms.Compose([Resize((256, 256)),
-                                          transforms.ToTensor(),])
 
-    if opt.model == 'residual_physics':
-        trainset = HazyDataset(train_data_dir, transforms_train, True)
-        testset = HazyDataset(test_data_dir, transforms_test, True)
-    else:
-        trainset = HazyDataset(train_data_dir, transforms_train, False)
-        testset = HazyDataset(test_data_dir, transforms_test, False)
+    transforms_train = transforms.Compose([transforms.ToTensor()])
+    trainset = prepare_data(opt.model, train_data_dir, image_size, transforms_train)
+    testset = prepare_data(opt.model, test_data_dir, image_size, transforms_train)
     trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=4)
 
 
     print('Building models')
-    if opt.model == 'residual_physics':
-        net = ResidualPhysics('resnet')
-    elif opt.model == 'two_stream':
-        net = TwoStream()
-    elif opt.model == 'dehazenet':
-        pass
-    elif opt.model == 'our_model':
-        pass
-
+    net = get_model(model=opt.model)
     net = net.to(device)
 
     if opt.load_model:
@@ -113,7 +100,10 @@ if __name__ == '__main__':
                 rgb_gt = data['gt'].to(device)
 
                 # forward with physics solution
-                outputs = net(rgb_input, nir_input)
+                if opt.model == 'one_stream':
+                    outputs = net(torch.cat((rgb_input, nir_input), dim=1))
+                else:
+                    outputs = net(rgb_input, nir_input)
 
             # calculate loss
             loss = criterion(outputs, rgb_gt)
