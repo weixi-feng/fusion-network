@@ -2,6 +2,7 @@ import os
 import torch
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms.functional as TF
+from torchvision import transforms
 import numpy as np
 import cv2
 from PIL import Image
@@ -14,8 +15,9 @@ import pickle
 
 
 class HazyDataset(Dataset):
-    def __init__(self, prefix, transform=None, dcp=False):
+    def __init__(self, prefix, output_size=(128,128), transform=None, dcp=False):
         print('Preparing dark channel images')
+        self.output_size = output_size
         self.rgb_path = os.path.join(prefix, 'RGB')
         self.nir_path = os.path.join(prefix, 'NIR')
         self.gt_path = os.path.join(prefix, 'gt')
@@ -36,6 +38,12 @@ class HazyDataset(Dataset):
         nir_image = np.asarray(Image.open(nir_image_name))
         gt_image = np.asarray(Image.open(gt_image_name))
 
+        i, j, h, w = transforms.RandomCrop.get_params(rgb_image, output_size=self.output_size)
+        rgb_image = TF.crop(rgb_image, i, j, h, w)
+        nir_image = TF.crop(nir_image, i, j, h, w)
+        gt_image = TF.crop(gt_image, i, j, h, w)
+
+
         if self.transform is not None:
             rgb_image = self.transform(rgb_image)
             nir_image = self.transform(nir_image)
@@ -48,11 +56,10 @@ class HazyDataset(Dataset):
         if not self.dcp:
             return image_dict
         else:
-            with open(rgb_dcp_name, 'rb') as rgb_file:
-                rgb_dehazed = pickle.load(rgb_file)
-            with open(nir_dcp_name, 'rb') as nir_file:
-                nir_dehazed = pickle.load(nir_file)
-
+            rgb_dehazed = np.asarray(Image.open(rgb_dcp_name))
+            nir_dehazed = np.asarray(Image.open(nir_dcp_name))
+            rgb_dehazed = TF.crop(rgb_dehazed, i, j, h, w)
+            nir_dehazed = TF.crop(nir_dehazed, i, j, h, w)
             if self.transform is not None:
                 rgb_dehazed = self.transform(rgb_dehazed)
                 nir_dehazed = self.transform(nir_dehazed)
