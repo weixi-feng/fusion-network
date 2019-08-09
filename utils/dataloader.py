@@ -8,15 +8,13 @@ import cv2
 from PIL import Image
 import matplotlib.pyplot as plt
 import glob
-from models.physicsmodel import rgb_nir_dcp
 import time
 from tqdm import tqdm
-import pickle
+import pdb
 
 
 class HazyDataset(Dataset):
     def __init__(self, prefix, output_size=(128,128), transform=None, dcp=False):
-        print('Preparing dark channel images')
         self.output_size = output_size
         self.rgb_path = os.path.join(prefix, 'RGB')
         self.nir_path = os.path.join(prefix, 'NIR')
@@ -34,11 +32,12 @@ class HazyDataset(Dataset):
         rgb_dcp_name = os.path.join(self.dcp_path, components[-1])
         nir_dcp_name = os.path.join(self.dcp_path, '{}nir.tiff'.format(components[-1][:-8]))
 
-        rgb_image = np.asarray(Image.open(rgb_image_name))
-        nir_image = np.asarray(Image.open(nir_image_name))
-        gt_image = np.asarray(Image.open(gt_image_name))
+        rgb_image = Image.open(rgb_image_name)
+        nir_image = Image.open(nir_image_name)
+        gt_image = Image.open(gt_image_name)
 
         i, j, h, w = transforms.RandomCrop.get_params(rgb_image, output_size=self.output_size)
+        # i, j, h, w = 309, 281, 256, 256
         rgb_image = TF.crop(rgb_image, i, j, h, w)
         nir_image = TF.crop(nir_image, i, j, h, w)
         gt_image = TF.crop(gt_image, i, j, h, w)

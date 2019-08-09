@@ -126,8 +126,6 @@ class OneStream(nn.Module):
         out8 = out7
         out8 = F.leaky_relu(self.bn8_1(self.conv8_1(out8)))
 
-        pdb.set_trace()
-
         out9 = F.leaky_relu(self.bn9_1(self.conv9_1(out8)))
         out9 = F.leaky_relu(self.bn9_2(self.conv9_2(out9)))
 

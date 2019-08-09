@@ -16,7 +16,7 @@ from opt.test_opt import test_parser
 from models import get_model
 
 
-def test(net, dataset, device, criterion, model):
+def test(net, dataset, device, criterion, model, save_dir=None):
     testloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
     test_loss = 0
     test_psnr = 0

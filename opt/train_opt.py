@@ -23,6 +23,7 @@ def train_parser():
     parser.add_argument('--niter', type=int, default=100, help='# of iter at starting learning rate')
     parser.add_argument('--niter_decay', type=int, default=100,
                         help='# of iter to linearly decay learning rate to zero')
+    parser.add_argument('--optim', type=str, default='adam', help='optimizer to use, either adam or sgd')
     parser.add_argument('--beta1', type=float, default=0.5, help='momentum term of adam')
     parser.add_argument('--lr', type=float, default=0.001, help='initial learning rate for adam')
     parser.add_argument('--lr_policy', type=str, default='linear',
