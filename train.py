@@ -1,11 +1,13 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 import os
 import time
 from torch.utils.data import DataLoader
 from torchvision import transforms
 import torch.optim as optim
+import torchvision
 from tqdm import tqdm
 import pdb
 import matplotlib.pyplot as plt
@@ -36,7 +38,7 @@ if __name__ == '__main__':
     lr_policy = opt.lr_policy
     lr_decay_iters = opt.lr_decay_iters
     num_threads = opt.num_threads
-    weight_decay = 0.9
+    weight_decay = 5e-4
 
 
     # recording parameter for training
@@ -51,6 +53,7 @@ if __name__ == '__main__':
     trainset = prepare_data(opt.model, train_data_dir, image_size)
     testset = prepare_data(opt.model, test_data_dir, image_size)
     trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=4)
+
 
     print('Building models')
     net = get_model(model=opt.model)
@@ -68,12 +71,13 @@ if __name__ == '__main__':
         start_epoch = opt.load_epoch
 
     criterion = nn.MSELoss()
+
     if opt.optim == 'adam':
         optimizer = optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999), weight_decay=weight_decay)
     elif opt.optim == 'sgd':
-        optimizer = optim.SGD(net.parameters(), lr=lr, weight_decay=weight_decay)
+        optimizer = optim.SGD(net.parameters(), lr=0.1, weight_decay=weight_decay)
 
-    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10)
+    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.9, patience=10)
 
     # start training
     print('Start training')
@@ -93,7 +97,7 @@ if __name__ == '__main__':
                 rgb_input, nir_input = data['rgb_input'].to(device), data['nir_input'].to(device)
                 rgb_dehazed, nir_dehazed = data['rgb_dehazed'].to(device), data['nir_dehazed'].to(device)
                 rgb_gt = data['gt'].to(device)
-
+                pdb.set_trace()
                 # forward with physics solution
                 outputs = net(rgb_input, nir_input, (rgb_dehazed, nir_dehazed))
             else:
@@ -105,7 +109,7 @@ if __name__ == '__main__':
                     outputs = net(torch.cat((rgb_input, nir_input), dim=1))
                 else:
                     outputs = net(rgb_input, nir_input)
-            pdb.set_trace()
+
             # calculate loss
             loss = criterion(outputs, rgb_gt)
 
@@ -125,7 +129,7 @@ if __name__ == '__main__':
 
         current_epoch_loss = np.mean(batch_loss)
         epoch_loss.append(current_epoch_loss)
-        # lr_scheduler.step(current_epoch_loss)
+        lr_scheduler.step(current_epoch_loss)
 
         current_epoch_psnr = np.mean(batch_psnr)
         epoch_psnr.append(current_epoch_psnr)
@@ -140,6 +144,8 @@ if __name__ == '__main__':
 
         print('Epoch %d, training loss: %.5f, avg_psnr: %.2f, avg_ssim: %.4f' % (epoch+1, current_epoch_loss,
                                                                                 current_epoch_psnr, current_epoch_ssim))
+
+
         if (epoch+1) % opt.test_freq == 0:
             test_loss, test_psnr, test_ssim = test(net, testset, device, criterion, opt.model)
             print('Testing results: avg_loss %.5f, avg_psnr: %.2f, avg_ssim %.4f' % (test_loss, test_psnr, test_ssim))
