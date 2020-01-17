@@ -21,7 +21,7 @@ from utils import get_psnr_torch, get_ssim_torch, prepare_data
 
 from opt.train_opt import train_parser
 from test import test
-
+# this is my change to train.py on testing branch
 
 if __name__ == '__main__':
     opt = train_parser()
