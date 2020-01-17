@@ -28,7 +28,6 @@ class ResidualPhysics(nn.Module):
 
         rgb_sol, nir_sol = phy_sol
         up_stream += rgb_sol
-        down_stream += nir_sol
 
         x = torch.cat((up_stream, down_stream), dim=1)
         out = self.frontbone(x)

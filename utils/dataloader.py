@@ -30,7 +30,7 @@ class HazyDataset(Dataset):
         nir_image_name = os.path.join(self.nir_path, '%snir.tiff' % components[-1][:-8])
         gt_image_name = os.path.join(self.gt_path, '%sgt.tiff' % components[-1][:-8])
         rgb_dcp_name = os.path.join(self.dcp_path, components[-1])
-        nir_dcp_name = os.path.join(self.dcp_path, '{}nir.tiff'.format(components[-1][:-8]))
+        nir_dcp_name = os.path.join(self.dcp_path, '{}rgb.tiff'.format(components[-1][:-8]))
 
         rgb_image = Image.open(rgb_image_name)
         nir_image = Image.open(nir_image_name)
@@ -55,8 +55,8 @@ class HazyDataset(Dataset):
         if not self.dcp:
             return image_dict
         else:
-            rgb_dehazed = np.asarray(Image.open(rgb_dcp_name))
-            nir_dehazed = np.asarray(Image.open(nir_dcp_name))
+            rgb_dehazed = Image.open(rgb_dcp_name)
+            nir_dehazed = Image.open(nir_dcp_name)
             rgb_dehazed = TF.crop(rgb_dehazed, i, j, h, w)
             nir_dehazed = TF.crop(nir_dehazed, i, j, h, w)
             if self.transform is not None:

@@ -97,7 +97,6 @@ if __name__ == '__main__':
                 rgb_input, nir_input = data['rgb_input'].to(device), data['nir_input'].to(device)
                 rgb_dehazed, nir_dehazed = data['rgb_dehazed'].to(device), data['nir_dehazed'].to(device)
                 rgb_gt = data['gt'].to(device)
-                pdb.set_trace()
                 # forward with physics solution
                 outputs = net(rgb_input, nir_input, (rgb_dehazed, nir_dehazed))
             else:
@@ -122,10 +121,6 @@ if __name__ == '__main__':
             batch_loss.append(loss.item())
             batch_psnr.append(get_psnr_torch(rgb_gt, outputs))
             batch_ssim.append(get_ssim_torch(rgb_gt, outputs))
-
-            if epoch==20:
-                plt.imshow(outputs[0].cpu().detach().numpy().transpose(1,2,0))
-                plt.show()
 
         current_epoch_loss = np.mean(batch_loss)
         epoch_loss.append(current_epoch_loss)
